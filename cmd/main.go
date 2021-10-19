@@ -24,8 +24,14 @@ func main() {
 	// billing
 	billItemCmd := flag.NewFlagSet("bill", flag.ExitOnError)
 
+	// display customer details
+	customersCmd := flag.NewFlagSet("customer", flag.ExitOnError)
+
+	// display admin details
+	adminsCmd := flag.NewFlagSet("admin", flag.ExitOnError)
+
 	if len(os.Args) < 2 {
-		ExitWithErrorMsg("Insufficient arguments. Expected - view (or) refill (or) bill (or) user command for execution")
+		ExitWithErrorMsg("Insufficient arguments. Expected - view (or) refill (or) bill (or) customer (or) admin command for execution")
 	}
 
 	switch os.Args[1] {
@@ -38,8 +44,14 @@ func main() {
 	case "bill":
 		// bill items from store
 		CreateBill(billItemCmd)
+	case "customer":
+		// display customers list
+		showCustomers(customersCmd)
+	case "admin":
+		// display admins list
+		showAdmins(adminsCmd)
 
 	default:
-		ExitWithErrorMsg(fmt.Sprintf("Unknown arguments %s. Expected - view (or) refill (or) buy (or) user command for execution", os.Args[1]))
+		ExitWithErrorMsg(fmt.Sprintf("Unknown arguments %s. Expected - view (or) refill (or) buy (or) customer (or) admin command for execution", os.Args[1]))
 	}
 }

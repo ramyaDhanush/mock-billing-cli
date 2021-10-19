@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
 )
 
 // ViewInventory - to view list of inventory items
@@ -49,7 +48,8 @@ func ViewInventory(viewInventoryCmd *flag.FlagSet, viewAll *bool, viewById *int,
 // RefillInventory - to refill inventory items
 func RefillInventory(refillInventoryCmd *flag.FlagSet) {
 	PrintGreetings("Welcome to Inventory Update!")
-	GetAdminAccess()
+	adminName := AuthenticationForAdmin()
+	StocksUpdateFromAdmin(adminName)
 }
 
 // CreateBill - bill items from store
@@ -78,3 +78,12 @@ func CreateBill(billItemCmd *flag.FlagSet) {
 
 }
 
+// showCustomers - show customers list
+func showCustomers(customersCmd *flag.FlagSet) {
+	ViewCustomers()
+}
+
+// showAdmins - show admins list
+func showAdmins(adminCmd *flag.FlagSet) {
+	ViewAdminDetails()
+}

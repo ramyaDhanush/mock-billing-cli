@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/fatih/color"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/rodaine/table"
 	"io/ioutil"
 	"os"
@@ -13,30 +13,8 @@ import (
 	"strings"
 )
 
-type Inventory struct {
-	Id          int     `json:"id"`
-	Title       string  `json:"title"`
-	Category    string  `json:"category"`
-	Stock       int     `json:"stock"`
-	Price       float64 `json:"price"`
-	Description string  `json:"description"`
-}
 
-type CustomerInfo struct {
-	Id      int    `json:"id"`
-	Name    string `json:"name"`
-	Contact string `json:"contact"`
-}
-
-type Bills struct {
-	Id          int     `json:"id"`
-	Title       string  `json:"title"`
-	Category    string  `json:"category"`
-	Price       float64 `json:"price"`
-	Quantity int  `json:"quantity"`
-	Amount float64 `json:"amount"`
-}
-
+// GetInventoryItems - Returns list of inventory items
 func GetInventoryItems() (inventory []Inventory) {
 	fileBytes, err := ioutil.ReadFile("../api/store-inventory.json")
 
@@ -54,6 +32,7 @@ func GetInventoryItems() (inventory []Inventory) {
 	return inventory
 }
 
+// WriteInventoryDetails - Update the file with inventory data
 func WriteInventoryDetails(inventory []Inventory) {
 	inventoryBytes, err := json.Marshal(inventory)
 
@@ -67,6 +46,7 @@ func WriteInventoryDetails(inventory []Inventory) {
 	}
 }
 
+// GetCustomerDetailsFromServer - Returns list of customers
 func GetCustomerDetailsFromServer() (customers []CustomerInfo) {
 	fileBytes, err := ioutil.ReadFile("../api/customer-records.json")
 
@@ -84,7 +64,7 @@ func GetCustomerDetailsFromServer() (customers []CustomerInfo) {
 	return customers
 }
 
-
+// DisplayInventory - Show inventory list
 func DisplayInventory() {
 	items := GetInventoryItems()
 	tbl := table.New("ID", "TITLE", "CATEGORY", "STOCK", "PRICE").WithPadding(3)
@@ -97,6 +77,7 @@ func DisplayInventory() {
 	tbl.Print()
 }
 
+// PrintBill - Show purchase bill
 func PrintBill(items []Bills) {
 	tbl := table.New("S.NO.", "ID", "TITLE", "CATEGORY", "PRICE", "QUANTITY", "AMOUNT").WithPadding(3)
 
@@ -107,14 +88,6 @@ func PrintBill(items []Bills) {
 
 	tbl.Print()
 }
-
-//func ConvertStructToMap(item Inventory) map[string]interface{} {
-//	m, _ := json.Marshal(item)
-//	var x map[string]interface{}
-//	_ = json.Unmarshal(m, &x)
-//
-//	return x
-//}
 
 // WriteUserDetails - To Write customer details to json file
 func WriteUserDetails(customers []CustomerInfo) {
@@ -130,11 +103,12 @@ func WriteUserDetails(customers []CustomerInfo) {
 	}
 }
 
-func AddNewUser(name, contact string) int{
+// AddNewUser - To add new customer to customers list
+func AddNewUser(name, contact string) int {
 	customers := GetCustomerDetailsFromServer()
-	newCustomer := CustomerInfo {
-		Id: len(customers)+1,
-		Name : name,
+	newCustomer := CustomerInfo{
+		Id:      len(customers) + 1,
+		Name:    name,
 		Contact: contact,
 	}
 
@@ -144,10 +118,107 @@ func AddNewUser(name, contact string) int{
 	return newCustomer.Id
 }
 
-func GetAdminAccess() {
-//
+// GetAdminDetails - Returns list of admins
+func GetAdminDetails() (admin []Admin) {
+	fileBytes, err := ioutil.ReadFile("../api/admin.json")
+
+	if err != nil {
+		fmt.Println(err, fileBytes)
+		panic(err)
+	}
+
+	err = json.Unmarshal(fileBytes, &admin)
+
+	if err != nil {
+		ExitWithErrorMsg("Admin Data is corrupted!! Please try again..")
+		panic(err)
+	}
+	return admin
 }
 
+// StocksUpdateFromAdmin - To update stocks by admin
+func StocksUpdateFromAdmin(admin string) {
+	inventoryItems := GetInventoryItems()
+	updatedStocks := []int{}
+	fmt.Println()
+	DisplayMessage("Enter -1 as item id to finish stock updates")
+	fmt.Println()
+
+	for {
+		item := StringPrompt(fmt.Sprintf("Enter inventory item id [1-%d]", len(inventoryItems)))
+		itemId, err := strconv.Atoi(item)
+		if itemId == -1 { // terminate the list
+			break
+		}
+		quantity := StringPrompt("Enter stock quantity : ")
+		itemQuantity, err := strconv.Atoi(quantity)
+		if err != nil {
+			ExitWithErrorMsg(fmt.Sprintf("%v", err))
+		}
+		switch {
+		case itemId >= 1 && itemId <= len(inventoryItems):
+			stockItem := inventoryItems[itemId-1]
+			stockItem.Stock = itemQuantity
+			updatedStocks = append(updatedStocks, stockItem.Id)
+
+			fmt.Printf("ID : %d, Item : %s, Category : %s, Price : %f, Stock : %d\n",
+				stockItem.Id, stockItem.Title, stockItem.Category, stockItem.Price, stockItem.Stock)
+		default:
+			DisplayMessage(fmt.Sprintf("ID %d is not available. Choose between 1 & %d", itemId, len(inventoryItems)))
+		}
+	}
+	if len(updatedStocks) > 0 {
+		WriteInventoryDetails(inventoryItems)
+		WriteInventoryStockLog(admin, updatedStocks)
+	}
+}
+
+// WriteInventoryStockLog - Write a log file with admin action
+func WriteInventoryStockLog(admin string, stocks []int) {
+	// convert int slice to a comma separated string
+	dataString := strings.Trim(strings.Replace(fmt.Sprint(stocks), " ", ",", -1), "[]")
+	//to insert new line while writing to file
+	dataString += "\n"
+	data := []byte(fmt.Sprintf("%s updated stock following item(s) :  %s", admin, dataString))
+
+	f, err := os.OpenFile("../logs/admin-stock-updates.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	if _, err = f.Write(data); err != nil {
+		ExitWithErrorMsg(fmt.Sprintf("%v", err))
+	}
+
+	PrintGreetings("Successfully updated the stocks :) ")
+
+}
+
+// AuthenticationForAdmin -Authenticate the admin login process
+func AuthenticationForAdmin() string {
+	name := StringPrompt("Enter your name : ")
+
+	password := ""
+	prompt2 := &survey.Password{
+		Message: "Enter your password : ",
+	}
+	survey.AskOne(prompt2, &password)
+
+	DisplayMessage("Authentication is in progress.... ")
+	fmt.Println(".................................")
+	adminDetails := GetAdminDetails()
+	for _, admin := range adminDetails {
+		if admin.Name == name && admin.Password == password {
+			PrintGreetings(fmt.Sprintf("Log in successful for %s", name))
+			return name
+		}
+	}
+	ExitWithErrorMsg("Authentication Failed. Try again.")
+	return ""
+}
+
+// GetCustomerInfo - To receive customer info from userinput
 func GetCustomerInfo() (int, string, string) {
 	customerType := ""
 	prompt := &survey.Select{
@@ -156,7 +227,7 @@ func GetCustomerInfo() (int, string, string) {
 	}
 	survey.AskOne(prompt, &customerType)
 
-	if(customerType == "New Customer") {
+	if customerType == "New Customer" {
 		var contact string
 		name := StringPrompt("Enter Customer Name : ")
 		fmt.Print("Enter Contact Number : ")
@@ -165,7 +236,7 @@ func GetCustomerInfo() (int, string, string) {
 			ExitWithErrorMsg(fmt.Sprintf("%v", err))
 		}
 		id := AddNewUser(name, contact)
-		return id,  name, contact
+		return id, name, contact
 	} else {
 		customers := GetCustomerDetailsFromServer()
 		id := StringPrompt("Enter Customer Id : ")
@@ -174,14 +245,15 @@ func GetCustomerInfo() (int, string, string) {
 			ExitWithErrorMsg(fmt.Sprintf("%d is not a valid id. Please try again", userId))
 		}
 		for _, customer := range customers {
-			if customer.Id ==  userId{
+			if customer.Id == userId {
 				return customer.Id, customer.Name, customer.Contact
 			}
 		}
-		return -1,  "", ""
+		return -1, "", ""
 	}
 }
 
+// DisplayInventoryWithfilter - To display inventory list with filter from input
 func DisplayInventoryWithfilter(value interface{}, filter string) {
 	items := GetInventoryItems()
 
@@ -199,7 +271,7 @@ func DisplayInventoryWithfilter(value interface{}, filter string) {
 					tbl.AddRow(item.Id, item.Title, item.Category, item.Stock, item.Price)
 				}
 			}
-			msg = fmt.Sprintf("%d",value.(int))
+			msg = fmt.Sprintf("%d", value.(int))
 		}
 	case "category":
 		{
@@ -220,7 +292,7 @@ func DisplayInventoryWithfilter(value interface{}, filter string) {
 					tbl.AddRow(item.Id, item.Title, item.Category, item.Stock, item.Category, item.Price)
 				}
 			}
-			msg = fmt.Sprintf("%f",value.(float64))
+			msg = fmt.Sprintf("%f", value.(float64))
 		}
 	case "price-below":
 		{
@@ -230,7 +302,7 @@ func DisplayInventoryWithfilter(value interface{}, filter string) {
 					tbl.AddRow(item.Id, item.Title, item.Category, item.Stock, item.Category, item.Price)
 				}
 			}
-			msg = fmt.Sprintf("%f",value.(float64))
+			msg = fmt.Sprintf("%f", value.(float64))
 		}
 	default:
 		DisplayMessage(fmt.Sprintf("Invalid entry  %s", filter))
@@ -244,6 +316,7 @@ func DisplayInventoryWithfilter(value interface{}, filter string) {
 	}
 }
 
+// UpdateInventoryStock - Update the stock value based on user action
 func UpdateInventoryStock(bills []Bills) {
 	inventoryItems := GetInventoryItems()
 
@@ -257,6 +330,7 @@ func UpdateInventoryStock(bills []Bills) {
 	WriteInventoryDetails(inventoryItems)
 }
 
+// PurchaseItems - Process of purchasing items from inventory
 func PurchaseItems() (float64, []Bills, int) {
 	amount := 0.0
 	purchaseList := []Bills{}
@@ -266,7 +340,7 @@ func PurchaseItems() (float64, []Bills, int) {
 	fmt.Println()
 
 	for {
-		item := StringPrompt("Enter inventory item id [1-48] : ")
+		item := StringPrompt(fmt.Sprintf("Enter inventory item id [1-%d]", len(inventoryItems)))
 		itemId, err := strconv.Atoi(item)
 		if itemId == -1 { // terminate the list
 			break
@@ -280,12 +354,12 @@ func PurchaseItems() (float64, []Bills, int) {
 		case itemId >= 1 && itemId <= len(inventoryItems):
 			purchaseItem := inventoryItems[itemId-1]
 			newPurchase := Bills{
-				Id: itemId,
-				Title: purchaseItem.Title,
+				Id:       itemId,
+				Title:    purchaseItem.Title,
 				Category: purchaseItem.Category,
-				Price: purchaseItem.Price,
+				Price:    purchaseItem.Price,
 				Quantity: itemQuantity,
-				Amount: purchaseItem.Price * float64(itemQuantity),
+				Amount:   purchaseItem.Price * float64(itemQuantity),
 			}
 
 			fmt.Printf("ID : %d, Item : %s, Category : %s, Price : %f, Quantity : %d | Amount = %f\n",
@@ -301,7 +375,8 @@ func PurchaseItems() (float64, []Bills, int) {
 	return amount, purchaseList, len(purchaseList)
 }
 
-func ConfirmPurchase() bool{
+// ConfirmPurchase -To confirm the purchase
+func ConfirmPurchase() bool {
 	confirmation := false
 	prompt := &survey.Confirm{
 		Message: "Do you like to proceed with payment? ",
@@ -311,6 +386,7 @@ func ConfirmPurchase() bool{
 	return confirmation
 }
 
+// ExitWithErrorMsg -  Display error with formatting
 func ExitWithErrorMsg(msg string) {
 	color.Set(color.FgHiRed)
 	fmt.Println(msg)
@@ -324,6 +400,7 @@ func DisplayMessage(msg string) {
 	magenta.Println(msg)
 }
 
+// StringPrompt - To prompt user with a question & return response
 func StringPrompt(label string) string {
 	var s string
 	r := bufio.NewReader(os.Stdin)
@@ -337,13 +414,50 @@ func StringPrompt(label string) string {
 	return strings.TrimSpace(s)
 }
 
+// WelcomeMessage - Display message with formatting
 func WelcomeMessage(msg string) {
 	magenta := color.New(color.FgCyan).Add(color.Bold)
 	magenta.Println(msg)
 }
 
-
+// PrintGreetings - Display message with formatting
 func PrintGreetings(msg string) {
 	green := color.New(color.FgGreen).Add(color.Bold)
 	green.Println(msg)
+}
+
+// ViewCustomers - Table of all customers
+func ViewCustomers() {
+	customers:= GetCustomerDetailsFromServer()
+
+	if len(customers) > 0 {
+		WelcomeMessage("Customer Details")
+		tbl := table.New("ID", "CUSTOMER NAME", "CONTACT NO")
+
+		for _, customer := range customers {
+			tbl.AddRow(customer.Id, customer.Name, customer.Contact)
+		}
+
+		tbl.Print()
+	} else {
+		DisplayMessage("No customer records found")
+	}
+}
+
+// ViewAdminDetails - Table of all admins
+func ViewAdminDetails() {
+	admins := GetAdminDetails()
+	if len(admins) > 0 {
+		WelcomeMessage("Admin Details")
+
+		tbl := table.New("NAME", "PASSWORD")
+
+		for _, admin := range admins {
+			tbl.AddRow(admin.Name, admin.Password)
+		}
+
+		tbl.Print()
+	} else {
+		DisplayMessage("No admin records found")
+	}
 }
