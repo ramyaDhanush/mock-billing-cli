@@ -13,12 +13,12 @@ A golang application to mock the billing system in super markets
 
 1. Move to `cmd` directory
 2. Run `go mod init` & `go mod tidy` to create `go.mod` & `go.sum` files
-3. Run the cmd.exe file with flags
-   i)    view (View items of inventory)
-         -- all, id, category, price-above, price-below
-   ii)   refill (refill stock with admin access)
-   iii)  bill (enter billing process)
-   iv)   customer (view customer list)
-    v)   admin (view admin list)
+3. Run the cmd.exe file with flags  
+   i)    view (View items of inventory)  
+         -- all, id, category, price-above, price-below  
+   ii)   refill (refill stock with admin access)  
+   iii)  bill (enter billing process)  
+   iv)   customer (view customer list)  
+    v)   admin (view admin list)  
 
 
